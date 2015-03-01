@@ -1,0 +1,180 @@
+<?php
+/**
+ * Simple set of classes to make requests to the Instagram API
+ * 
+ * @author      Vinícius Campitelli <eu@viniciuscampitelli.com>
+ * @version     1.0.0
+ * 
+ * @license     http://opensource.org/licenses/gpl-license.php GNU Public License
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * @see         Instagram\Resource\Instagram_Resource_Abstract
+ */
+if (!class_exists('Instagram_ResultSet')) {
+    require dirname(__DIR__) . '/ResultSet.php';
+}
+
+/**
+ * Abstract class for class resources,
+ * which represents Endpoints for the API
+ *
+ * @abstract
+ * @package     Instagram\Resource\Instagram_Resource_Abstract
+ * @link        https://instagram.com/developer/endpoints/  Instagram API endpoints
+ */
+abstract class Instagram_Resource_Abstract
+{
+    
+    /**
+     * Base object
+     * @var Instagram_Base
+     */
+    private $__baseObj = null;
+    
+    /**
+     * Class constructor
+     *
+     * @final
+     * @param   Instagram_Base  $base   Base object
+     * @return  void
+     */
+    public final function __construct(Instagram_Base $base)
+    {
+        $this->__baseObj = $base;
+    }
+    
+    /**
+     * Returns base object
+     *
+     * @return  Instagram_Base
+     */
+    public function getBase()
+    {
+        return $this->__baseObj;
+    }
+    
+    /**
+     * Makes a request to the API
+     *
+     * @param   string  $url        Resource URL
+     * @param   int     $quantity   Total of results to fetch
+     * @return  boolean|object      False if any error occurs, or an object holding the response
+     */
+    public function request($url, $quantity = null)
+    {
+        $arrUrl = parse_url($url);
+        if (empty($arrUrl)) {
+            return false;
+        }
+        
+        if (empty($arrUrl['query'])) {
+            $arrQuery = array();
+        } else {
+            parse_str($arrUrl['query'], $arrQuery);
+        }
+        
+        // Appends current Access Token to the URL
+        if (!isset($arrQuery['access_token'])) {
+            $arrQuery['access_token'] = $this->_getAccessToken();
+        }
+        $arrUrl['query'] = http_build_query($arrQuery);
+        
+        // Total of results to fetch
+        $quantity = (int) $quantity;
+        if ($quantity) {
+            $arrUrl['count'] = $quantity;
+        }
+        
+        $response = $this->_doRequest($this->buildUrl($arrUrl));
+        if (empty($response)) {
+            return false;
+        }
+        
+        return new Instagram_ResultSet($response, $this);
+    }
+    
+    /**
+     * Actually makes the request
+     *
+     * @param   string  $url    Resource URL
+     * @return  boolean|object  False if an error occurs, an object with the response otherwise
+     */
+    protected function _doRequest($url)
+    {
+        $handler = curl_init($url);
+        if ($handler === false) {
+            return false;
+        }
+        
+        curl_setopt_array($handler, $this->getBase()->getCurlConfig());
+        
+        $response = curl_exec($handler);
+        
+        curl_close($handler);
+        
+        if (empty($response)) {
+            return false;
+        }
+        
+        $response = json_decode($response);
+        
+        if ((empty($response)) || (empty($response->meta->code)) || ($response->meta->code != 200) || (empty($response->data))) {
+            return false;
+        }
+        
+        return $response;
+    }
+    
+    /**
+     * Gets current access token
+     *
+     * @throws  Exception   When no acess token were informed
+     * @return  string
+     */
+    protected function _getAccessToken()
+    {
+        $accessToken = $this->getBase()->getAccessToken();
+        if (empty($accessToken)) {
+            throw new Exception('No access token has been informed.');
+        }
+        
+        return $accessToken;
+    }
+
+    /**
+     * Creates a URL with the parameters of parse_url
+     *
+     * @link    http://php.net/manual/en/function.parse-url.php#106731  Original function
+     * @param   array   $arrUrl URL componentes created by parse_url
+     * @return  void
+     */
+    public function buildUrl(array $arrUrl)
+    {
+        $scheme   = (isset($arrUrl['scheme']))      ? "{$arrUrl['scheme']}://"  : ''; 
+        $host     = (isset($arrUrl['host']))        ? $arrUrl['host']           : ''; 
+        $port     = (isset($arrUrl['port']))        ? ":{$arrUrl['port']}"      : ''; 
+        $user     = (isset($arrUrl['user']))        ? $arrUrl['user']           : ''; 
+        $pass     = (isset($arrUrl['pass']))        ? ":{$arrUrl['pass']}"      : ''; 
+        $pass     = (($user) || ($pass))            ? "{$pass}@"                : ''; 
+        $path     = (isset($arrUrl['path']))        ? $arrUrl['path']           : ''; 
+        $query    = (isset($arrUrl['query']))       ? "?{$arrUrl['query']}"     : ''; 
+        $fragment = (isset($arrUrl['fragment']))    ? "#{$arrUrl['fragment']}"  : ''; 
+        
+        return "{$scheme}{$user}{$pass}{$host}{$port}{$path}{$query}{$fragment}"; 
+    } 
+    
+}

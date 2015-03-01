@@ -1,0 +1,52 @@
+<?php
+/**
+ * Simple set of classes to make requests to Instagram API
+ * 
+ * @author      Vinícius Campitelli <eu@viniciuscampitelli.com>
+ * @version     1.0.0
+ * 
+ * @license     http://opensource.org/licenses/gpl-license.php GNU Public License
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * Resource class to query photos
+ *
+ * @package     Instagram\Resource\Instagram_Resource_Photo
+ * @see         Instagram\Resource\Instagram_Resource_Abstract  Resource abstract class
+ */
+class Instagram_Resource_Photo extends Instagram_Resource_Abstract
+{
+
+    /**
+     * Get photos from a user
+     *
+     * @throw   Exception               If an error occurs
+     * @param   string|int  $user       Username or user ID
+     * @param   int         $quantity   Amount of photos to request
+     * @return  object|boolean          False if an error occurs, an object containing the response data otherwise
+     */
+    public function getPhotos($user, $quantity = 0)
+    {
+        $userId = (int) $this->getBase()->getUserId($user);
+        if (!$userId) {
+            return false;
+        }
+        
+        return $this->request("https://api.instagram.com/v1/users/{$userId}/media/recent", (int) $quantity);
+    }
+    
+}
+
